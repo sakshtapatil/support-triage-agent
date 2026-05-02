@@ -1,33 +1,25 @@
-# secrets
+# API Keys
 .env
-.env.local
-*.pem
-*.key
 
-# deps
-node_modules/
-.pnpm-store/
-.venv/
-venv/
+# Python
 __pycache__/
 *.pyc
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+*.pyo
+venv/
+.venv/
 
-# build
-dist/
-build/
-*.tsbuildinfo
+# Hackathon internal files
+AGENTS.md
+CLAUDE.md
+evalutation_criteria.md
+problem_statement.md
 
-# editor / os
+# Large data corpus
+data/
+
+# Support ticket CSVs
+support_tickets/output.csv
+support_tickets/support_tickets.csv
+
+# OS
 .DS_Store
-.idea/
-.vscode/
-Thumbs.db
-
-# local data / caches the participant may create
-data/index/
-data/embeddings/
-*.sqlite
-*.db
