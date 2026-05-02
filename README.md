@@ -1,134 +1,153 @@
-# HackerRank Orchestrate
+# 🤖 Multi-Domain Support Triage Agent
 
-Starter repository for the **HackerRank Orchestrate** 24-hour hackathon (May 1–2, 2026).
+An AI-powered terminal agent that automatically triages support tickets across **HackerRank**, **Claude (Anthropic)**, and **Visa** — using a local corpus and LLM-generated responses.
 
-Build a terminal-based AI agent that triages real support tickets across three product ecosystems; **HackerRank**, **Claude**, and **Visa** — using only the support corpus shipped in this repo.
-
-Read [`problem_statement.md`](./problem_statement.md) for the full task spec, input/output schema, and allowed values, and [`evalutation_criteria.md`](./evalutation_criteria.md) for how submissions are scored.
+Built for the HackerRank Orchestrate Hackathon (May 2026).
 
 ---
 
-## Contents
+## 🏗️ Architecture
 
-1. [Repository layout](#repository-layout)
-2. [What you need to build](#what-you-need-to-build)
-3. [Where your code goes](#where-your-code-goes)
-4. [Quickstart](#quickstart)
-5. [Chat transcript logging](#chat-transcript-logging)
-6. [Submission](#submission)
-7. [Judge interview](#judge-interview)
-8. [Evaluation criteria](#evaluation-criteria)
+```
+support_tickets.csv
+        ↓
+┌─────────────────────────────────────────┐
+│              main.py                    │
+│         (Orchestration Layer)           │
+└────┬────────────┬───────────────────────┘
+     ↓            ↓
+classifier.py   retriever.py
+(Rule-based)    (TF-IDF Search)
+     ↓            ↓
+     └────────────┘
+           ↓
+      responder.py
+    (Groq LLaMA 3.3)
+           ↓
+      output.csv
+```
+
+### Flow per ticket:
+1. **Classify** — infer domain, risk level, product area, request type using rules
+2. **Escalate check** — immediately escalate dangerous/manipulative tickets
+3. **Retrieve** — TF-IDF search over 773 local corpus docs to find top-3 relevant
+4. **Respond** — LLM generates grounded response using only corpus context
+5. **Output** — write results to CSV
 
 ---
 
-## Repository layout
+## 📁 Project Structure
 
 ```
 .
-├── AGENTS.md                       # Rules for AI coding tools + transcript logging
-├── problem_statement.md            # Full task description and I/O schema
-├── README.md                       # You are here
-├── code/                           # ← Build your agent here
-│   └── main.py                     #   Entry point (rename/extend as you like)
-├── data/                           # Local-only support corpus (no network needed)
-│   ├── hackerrank/                 #   HackerRank help center
-│   ├── claude/                     #   Claude Help Center export
-│   └── visa/                       #   Visa consumer + small-business support
+├── code/
+│   ├── main.py          # Entry point
+│   ├── classifier.py    # Rule-based domain/risk/type classifier
+│   ├── retriever.py     # TF-IDF corpus search
+│   ├── responder.py     # Groq LLM response generator
+│   ├── requirements.txt
+│   └── README.md
+├── data/
+│   ├── hackerrank/      # HackerRank support corpus
+│   ├── claude/          # Claude help center corpus
+│   └── visa/            # Visa support corpus
 └── support_tickets/
-    ├── sample_support_tickets.csv  # Inputs + expected outputs (for development)
-    ├── support_tickets.csv         # Inputs only (run your agent on these)
-    └── output.csv                  # Write your agent's predictions here
+    ├── support_tickets.csv      # Input tickets
+    ├── sample_support_tickets.csv
+    └── output.csv               # Agent predictions
 ```
 
 ---
 
-## What you need to build
+## ⚙️ Setup
 
-A terminal-based agent that, for each row in `support_tickets/support_tickets.csv`, produces:
-
-| Column         | Allowed values                                          |
-| -------------- | ------------------------------------------------------- |
-| `status`       | `replied`, `escalated`                                  |
-| `product_area` | most relevant support category / domain area            |
-| `response`     | user-facing answer grounded in the provided corpus      |
-| `justification`| concise explanation of the routing/answering decision   |
-| `request_type` | `product_issue`, `feature_request`, `bug`, `invalid`    |
-
-Hard requirements (from `problem_statement.md`):
-
-- Must be **terminal-based**.
-- Must use **only the provided support corpus** (no live web calls for ground-truth answers).
-- Must **escalate** high-risk, sensitive, or unsupported cases instead of guessing.
-- Must avoid hallucinated policies or unsupported claims.
-
-Beyond that you are free to bring your own approach — RAG, vector DBs, tool use, structured output, agent frameworks, classical ML, or anything else.
-
----
-
-## Where your code goes
-
-All of your work belongs in [`code/`](./code/). The repo ships with an empty `code/main.py` you can grow into your full agent — add more modules (`agent.py`, `retriever.py`, `classifier.py`, etc.) next to it as needed.
-
-Conventions:
-
-- Put a **README inside `code/`** describing how to install dependencies and run your agent.
-- Read secrets **from environment variables only** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …). Copy `.env.example` → `.env` (already gitignored) if you keep one. **Never hardcode keys.**
-- Be **deterministic** where possible. Seed any random sampling.
-- Write responses to `support_tickets/output.csv`.
-
----
-
-## Quickstart
-
-Clone this repository:
-
+**1. Clone the repo:**
 ```bash
-git clone git@github.com:interviewstreet/hackerrank-orchestrate-may26.git
-cd hackerrank-orchestrate-may26
+git clone https://github.com/yourusername/support-triage-agent.git
+cd support-triage-agent
 ```
 
-You are free to use any language or runtime. We recommend **Python**, **JavaScript**, or **TypeScript**.
+**2. Install dependencies:**
+```bash
+pip install -r code/requirements.txt
+```
+
+**3. Get a free Groq API key:**
+- Go to [console.groq.com](https://console.groq.com)
+- Create a free account → API Keys → Create Key
+
+**4. Create `.env` in the repo root:**
+```
+GROQ_API_KEY=gsk_your_key_here
+```
+
+**5. Run the agent:**
+```bash
+cd code
+python main.py
+```
+
+Output is written to `support_tickets/output.csv`.
 
 ---
 
-## Chat transcript logging
+## 🧠 Design Decisions
 
-This repo ships with an `AGENTS.md` that any modern AI coding tool (Cursor, Claude Code, Codex, Gemini CLI, Copilot, etc.) will read. It instructs the tool to append every conversation turn to a single shared log file:
+### Why TF-IDF over Vector DB?
+- No external dependencies or setup required
+- Fully offline — works without internet
+- Fast enough for small corpus (773 docs)
+- Easier to explain and debug
 
-| Platform       | Path                                              |
-| -------------- | ------------------------------------------------- |
-| macOS / Linux  | `$HOME/hackerrank_orchestrate/log.txt`            |
-| Windows        | `%USERPROFILE%\hackerrank_orchestrate\log.txt`    |
+### Why Groq (LLaMA 3.3 70B)?
+- Free tier available — no credit card needed
+- Very fast inference (~1-2s per ticket)
+- Strong instruction following for JSON output
 
-You don't need to do anything to enable it — just use your AI tool normally. You'll upload this `log.txt` as your chat transcript at submission time.
+### Escalation Logic
+Two-stage escalation:
+1. **Rule-based pre-filter** — catches prompt injection, score manipulation, identity theft, harmful requests before LLM
+2. **LLM decision** — for medium-risk tickets, LLM decides based on corpus availability
 
----
-
-## Submission
-
-Submit on the HackerRank Community Platform:
-<https://www.hackerrank.com/contests/hackerrank-orchestrate-may26/challenges/support-agent/submission>
-
-You will upload **three** files:
-
-1. **Code zip** — zip your `code/` directory and upload it. Exclude virtualenvs, `node_modules`, build artifacts, the `data/` corpus, and the `support_tickets/` CSVs.
-2. **Predictions CSV** — your agent's output for `support_tickets/support_tickets.csv` (i.e. the populated `output.csv`).
-3. **Chat transcript** — the `log.txt` from the path in [Chat transcript logging](#chat-transcript-logging).
+### Fail-safe Design
+Any error during LLM call defaults to `escalated` — never produces a hallucinated answer.
 
 ---
 
-## Judge interview
+## 📊 Results
 
-After a successful submission, your AI Judge interview will happen within a few hours after the hackathon ends. It will stay open for the next 4 hours. 
+On 29 real support tickets:
+- **23 replied** — answered from corpus
+- **6 escalated** — sensitive/dangerous/out-of-scope
 
-The AI Judge will have access to your submission and may ask about your approach, decisions, and how you used AI while building your solution. The interview will be 30 minutes long, and keeping your camera on is mandatory.
-
-Results will be announced on May 15, 2026
+Correctly escalated:
+- Unauthorized workspace access requests
+- Score manipulation attempts
+- Identity theft cases
+- Harmful code requests
+- Prompt injection attempts (including multilingual)
 
 ---
 
-## Evaluation criteria
+## 🚀 Future Improvements
 
-Submissions are scored across four dimensions: agent design (your `code/`), the AI Judge interview, output accuracy on `support_tickets/output.csv`, and AI fluency from your chat transcript.
+- [ ] Semantic search using sentence embeddings (e.g. `sentence-transformers`)
+- [ ] Confidence scoring per retrieval result
+- [ ] Multi-turn conversation support
+- [ ] Web UI for ticket management
+- [ ] Support for more domains
 
-See [`evalutation_criteria.md`](./evalutation_criteria.md) for the full rubric.
+---
+
+## 🛠️ Tech Stack
+
+- **Python 3.11+**
+- **Groq API** (LLaMA 3.3 70B)
+- **TF-IDF** (custom implementation, no sklearn needed)
+- **python-dotenv**
+
+---
+
+## 📝 License
+
+MIT
